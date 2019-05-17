@@ -63,6 +63,8 @@ main05 = do putStrLn "5 Interactive programms: input and output processing"
             putStrLn (show n1 ++ show n2)
             now <- time
             Interactive.guess (fromIntegerNat (now `mod` 100)) 0
+            vect <- Interactive.readVectFile "Test.txt"
+            printLn (show vect)
 
 main : IO ()
 main = main05
