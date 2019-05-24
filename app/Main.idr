@@ -14,6 +14,7 @@ import Vector
 import DataStore
 import Hello
 import Interactive
+import Printf
 
 main01 : IO ()
 main01 = do putStrLn "1 Overview"
@@ -67,7 +68,8 @@ main05 = do putStrLn "5 Interactive programms: input and output processing"
             printLn (show vect)
             
 main06 : IO ()
-main06 = do putStrLn "6 Programming with first-class types"            
+main06 = do putStrLn "6 Programming with first-class types"
+            putStrLn (Printf.printf "Hello world")
 
 main : IO ()
 main = main06
