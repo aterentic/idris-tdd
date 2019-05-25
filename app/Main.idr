@@ -66,10 +66,11 @@ main05 = do putStrLn "5 Interactive programms: input and output processing"
             Interactive.guess (fromIntegerNat (now `mod` 100)) 0
             vect <- Interactive.readVectFile "Test.txt"
             printLn (show vect)
-            
+
+
 main06 : IO ()
 main06 = do putStrLn "6 Programming with first-class types"
-            putStrLn (Printf.printf "Hello world")
+            Printf.main
 
 main : IO ()
 main = main06
