@@ -5,77 +5,101 @@ import Data.Vect
 -- A parameter is unchanged across the entire structure (every element of the vector has the same type)
 -- An index may change across a structure (every subvector has a different length)
 
-public export
-data DataStore : Type where
-     MkData : (size : Nat) ->
-              (items : Vect size String) ->
-              DataStore
-              
-size : DataStore -> Nat              
-size (MkData size' items') = size'
+infixr 5 .+.
 
-items : (store : DataStore) -> Vect (size store) String
-items (MkData size' items') = items'
+data Schema = SString
+            | SInt
+            | (.+.) Schema Schema
 
-addToStore : DataStore -> String -> DataStore
-addToStore (MkData size items) newItem = MkData _ (addToData items)
+SchemaType : Schema -> Type
+SchemaType SString = String
+SchemaType SInt = Int
+SchemaType (x .+. y) = (SchemaType x, SchemaType y)
+
+record DataStore where
+       constructor MkData
+       schema : Schema
+       size : Nat
+       items : Vect size (SchemaType schema)
+
+addToStore : (store : DataStore) -> SchemaType (schema store) -> DataStore
+addToStore (MkData schema size items) newItem = MkData _ _ (addToData items)
   where
-    addToData : Vect old String -> Vect (S old) String
+    addToData : Vect old (SchemaType schema) -> Vect (S old) (SchemaType schema)
     addToData [] = [newItem]
     addToData (item :: items') = item :: addToData items'
-       
-data Command = Add String
-             | Get Integer
-             | Search String
-             | Size
-             | Quit
-
-parseCommand : String -> String -> Maybe Command
-parseCommand "add" str = Just (Add str)
-parseCommand "get" val = case all isDigit (unpack val) of
-                              False => Nothing
-                              True => Just (Get (cast val))
-parseCommand "search" str = Just (Search str)                              
-parseCommand "size" "" = Just Size
-parseCommand "quit" "" = Just Quit
-parseCommand _ _ = Nothing
-
-parse : (input : String) -> Maybe Command
-parse input = case Strings.span (/= ' ') input of
-                   (cmd, args) => parseCommand cmd (ltrim args)
+    
+display : SchemaType schema -> String
+display {schema = SString} item = item
+display {schema = SInt} item = show item
+display {schema = (x .+. y)} (iteml, itemr) = display iteml ++ ", " ++ display itemr
 
 getEntry : (pos : Integer) -> (store : DataStore) -> Maybe (String, DataStore)
 getEntry pos store = let storeItems = items store in
                                case integerToFin pos (size store) of
                                     Nothing => Just ("Out of range\n", store)
-                                    Just id => Just (index id storeItems ++ "\n", store)
-                                    
+                                    Just id => Just (display (index id storeItems) ++ "\n", store)
+    
+                  
+data Command : Schema -> Type where
+             Add : SchemaType schema -> Command schema
+             Get : Integer -> Command schema
+--             Search : String -> Command schema
+             Size : Command schema
+             Quit : Command schema
+             
+parsePrefix : (schema : Schema) -> String -> Maybe (SchemaType schema, String)             
+parsePrefix SString item = Just (item, "")
+parsePrefix SInt input = case span isDigit input of
+                              ("", rest) => Nothing
+                              (num, rest) => Just (cast num, ltrim rest)
+parsePrefix (schemal .+. schemar) item = case parsePrefix schemal item of
+                                              Nothing => Nothing
+                                              Just (schema, rest) => case parsePrefix schemar rest of
+                                                                         Nothing => Nothing
+                                                                         Just (schema', "") => Just ((schema, schema'), "")
+                                                                         Just (schema', rest) => Nothing
 
-search : (store : DataStore) -> String -> String
-search store str = toString (searchItems 0 (items store) str)
-                 where
-                   searchItems : Int -> Vect n String -> String -> List (Int, String)
-                   searchItems pos [] str = []
-                   searchItems pos (x :: xs) str = case Strings.isInfixOf str x of
-                                                       False => searchItems (pos + 1) xs str
-                                                       True => (pos, x) :: searchItems (pos + 1) xs str
-                   toString : List (Int, String) -> String
-                   toString [] = ""
-                   toString ((pos, item) :: xs) = show pos ++ ": " ++ item ++ "\n" ++ toString xs
+parseBySchema : (schema : Schema) -> (str : String) -> Maybe (SchemaType schema)
+parseBySchema schema str = case parsePrefix schema str of
+                                Just (res, "") => Just res
+                                Just _ => Nothing
+                                Nothing => Nothing
+
+parseCommand : (schema : Schema) -> String -> String -> Maybe (Command schema)
+parseCommand schema "add" str = case parseBySchema schema str of
+                                     Nothing => Nothing
+                                     (Just item) => Just (Add item)
+parseCommand schema "get" val = case all isDigit (unpack val) of
+                              False => Nothing
+                              True => Just (Get (cast val))
+-- parseCommand schema "search" str = Just (Search str)                              
+parseCommand schema "size" "" = Just Size
+parseCommand schema "quit" "" = Just Quit
+parseCommand _ _ _ = Nothing
+
+parse : (schema : Schema) -> (input : String) -> Maybe (Command schema)
+parse schema input = case Strings.span (/= ' ') input of
+                   (cmd, args) => parseCommand schema cmd (ltrim args)
+                   
+-- search : (store : DataStore) -> String -> (SchemaType (schema store))
+-- search store str = toString (searchItems 0 (items store) str)
+--                  where
+--                    searchItems : Int -> Vect n String -> String -> List (Int, String)
+--                    searchItems pos [] str = []
+--                    searchItems pos (x :: xs) str = case Strings.isInfixOf str x of
+--                                                        False => searchItems (pos + 1) xs str
+--                                                        True => (pos, x) :: searchItems (pos + 1) xs str
+--                    toString : List (Int, String) -> String
+--                    toString [] = ""
+--                    toString ((pos, item) :: xs) = show pos ++ ": " ++ item ++ "\n" ++ toString xs
 
 
-
-processCommand : (cmd : Command) -> (store : DataStore) -> Maybe (String, DataStore)
-processCommand (Add item) store = Just ("ID " ++ show (size store) ++ "\n", addToStore store item)
-processCommand (Get pos) store = getEntry pos store
-processCommand (Search str) store = Just (search store str, store)
-processCommand Size store = Just ("There are " ++ show (size store) ++ " items in store\n", store)
-processCommand Quit store = Nothing
-
-
-export
 processInput : DataStore -> String -> Maybe (String, DataStore)
-processInput store input = case parse input of
+processInput store input = case parse (schema store) input of
                                 Nothing => Just ("Invalid command\n", store)
-                                (Just cmd) => processCommand cmd store
-
+                                Just (Add item) => Just ("ID " ++ show (size store) ++ "\n", addToStore store item)
+                                Just (Get pos) => getEntry pos store
+--                                Just (Search x) => Just (search store str, store)
+                                Just Size => Just ("There are " ++ show (size store) ++ " items in store\n", store)
+                                Just Quit => Nothing
