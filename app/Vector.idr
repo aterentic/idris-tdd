@@ -34,3 +34,14 @@ sumEntries pos [] [] = Nothing
 sumEntries {n} i xs ys = case integerToFin i n of
                               Nothing => Nothing
                               Just pos => Just (index pos xs + index pos ys)
+
+Eq ty => Eq (Vector.Vect len ty) where
+  (==) [] [] = True  
+  (==) (x :: xs) (y :: ys) = x == y && xs == ys
+
+Foldable (Vector.Vect len) where
+  foldr func init [] = init
+  foldr func init (x :: xs) = foldr func (func x init) xs
+  foldl func init [] = init
+  foldl func init (x :: xs) = func (foldl func init xs) x
+

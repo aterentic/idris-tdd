@@ -70,3 +70,15 @@ export
 Show Biggest where
   show NoTriangle = "NoTriangle"
   show (Size x) = "Triangle " ++ (show x)
+
+Eq Shape where
+  (==) (Triangle x z) (Triangle y w) = x == y && z == w
+  (==) (Circle x) (Circle y) = x == y
+  (==) (Rectangle x z) (Rectangle y w) = x == y && z == w
+  (==) _ _ = False
+  
+Ord Shape where  
+  compare x y = compare (area x) (area y)
+  
+testShapes : List Shape
+testShapes = [Circle 3, Triangle 3 9, Rectangle 2 6, Circle 4, Rectangle 2 7]

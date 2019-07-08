@@ -47,4 +47,13 @@ maxMaybe Nothing y = y
 maxMaybe x Nothing = x
 maxMaybe (Just x) (Just y) = if x > y then Just x else Just y
 
+Functor Tree where
+  map f Empty = Empty
+  map f (Node left elem right) = Node (map f left) (f elem) (map f right)
 
+Foldable Tree where
+  foldr func acc Empty = acc
+  foldr func acc (Node left e right) = let accl = foldr func acc left
+                                           accr = foldr func accl right in
+                                           func e accr
+                                           

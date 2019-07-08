@@ -42,11 +42,16 @@ getEntry pos store = let storeItems = items store in
                                case integerToFin pos (size store) of
                                     Nothing => Just ("Out of range\n", store)
                                     Just id => Just (display (index id storeItems) ++ "\n", store)
-    
+
+displayAll : Vect len (SchemaType schema) -> Nat -> String
+displayAll [] n = ""
+displayAll (i::is) n = show n ++ ": " ++ display i ++ "\n" ++ displayAll is (S n) 
+
                   
 data Command : Schema -> Type where
              SetSchema : (newSchema : Schema) -> Command schema
              Add : SchemaType schema -> Command schema
+             GetAll : Command schema
              Get : Integer -> Command schema
 --             Search : String -> Command sc    hema
              Size : Command schema
@@ -59,57 +64,50 @@ parsePrefix SInt input = case span isDigit input of
                               (num, rest) => Just (cast num, ltrim rest)
 parsePrefix SChar input = case unpack input of
                                [] => Nothing
-                               (x::rest) => Just (x, "")
+                               (x::rest) => Just (x, trim $ pack rest)
                                _ => Nothing
-parsePrefix (schemal .+. schemar) item = case parsePrefix schemal item of
-                                              Nothing => Nothing
-                                              Just (schema, rest) => case parsePrefix schemar rest of
-                                                                         Nothing => Nothing
-                                                                         Just (schema', "") => Just ((schema, schema'), "")
-                                                                         Just (schema', rest) => Nothing
+parsePrefix (schemal .+. schemar) item = do (schema', rest) <- parsePrefix schemal item 
+                                            case parsePrefix schemar rest of
+                                                 Nothing => Nothing
+                                                 Just (schema'', "") => Just ((schema', schema''), "") 
+                                                 Just (schema'', rest) => Nothing
 
 parseSchema : List String -> Maybe Schema
 parseSchema ("String" :: xs)
   = case xs of
          [] => Just SString
-         _ => case parseSchema xs of
-                  Nothing => Nothing
-                  Just xs_sch => Just (SString .+. xs_sch)
+         _ => do xs_sch <- parseSchema xs
+                 Just (SString .+. xs_sch)
 parseSchema ("Char" :: xs)
   = case xs of
          [] => Just SChar
-         _ => case parseSchema xs of
-                  Nothing => Nothing
-                  Just xs_sch => Just (SChar .+. xs_sch)
+         _ => do xs_sch <- parseSchema xs
+                 Just (SChar .+. xs_sch)
 parseSchema ("Int" :: xs)
   = case xs of
          [] => Just SInt
-         _ => case parseSchema xs of
-                  Nothing => Nothing
-                  Just xs_sch => Just (SInt .+. xs_sch)
+         _ => do xs_sch <- parseSchema xs
+                 Just (SInt .+. xs_sch)
 parseSchema _ = Nothing
 
 parseBySchema : (schema : Schema) -> (str : String) -> Maybe (SchemaType schema)
 parseBySchema schema str = case parsePrefix schema str of
                                 Just (res, "") => Just res
-                                Just _ => Nothing
-                                Nothing => Nothing
+                                _ => Nothing
 
 parseCommand : (schema : Schema) -> String -> String -> Maybe (Command schema)
-parseCommand schema "add" str = case parseBySchema schema str of
-                                     Nothing => Nothing
-                                     (Just item) => Just (Add item)
+parseCommand schema "add" str = do item <- parseBySchema schema str
+                                   Just (Add item)
+parseCommand schema "get" "" = Just GetAll
 parseCommand schema "get" val = case all isDigit (unpack val) of
                               False => Nothing
                               True => Just (Get (cast val))
-parseCommand schema "schema" rest
-  = case parseSchema (words rest) of
-         Nothing => Nothing
-         Just newSchema => Just (SetSchema newSchema)
--- parseCommand schema "search" str = Just (Search str)
+parseCommand schema "schema" rest = do newSchema <- parseSchema (words rest)
+                                       Just (SetSchema newSchema)
 parseCommand schema "size" "" = Just Size
 parseCommand schema "quit" "" = Just Quit
 parseCommand _ _ _ = Nothing
+-- parseCommand schema "search" str = Just (Search str)
 
 setSchema : (store : DataStore) -> Schema -> Maybe DataStore
 setSchema store schema = case size store of
@@ -137,14 +135,15 @@ processInput : DataStore -> String -> Maybe (String, DataStore)
 processInput store input = case parse (schema store) input of
                                 Nothing => Just ("Invalid command\n", store)
                                 Just (Add item) => Just ("ID " ++ show (size store) ++ "\n", addToStore store item)
-                                Just (Get pos) => getEntry pos store
+                                Just GetAll => Just (displayAll (items store) 0, store)
+                                Just (Get pos) => getEntry pos store     
                                 Just (SetSchema schema') =>
                                   case setSchema store schema' of
                                        Nothing => Just ("Can't update schema\n", store)
                                        Just store' => Just ("OK\n", store')
---                                Just (Search x) => Just (search store str, store)
                                 Just Size => Just ("There are " ++ show (size store) ++ " items in store\n", store)
                                 Just Quit => Nothing
+--                              Just (Search x) => Just (search store str, store)
 
 maybeAdd : Maybe Int -> Maybe Int -> Maybe Int
 maybeAdd x y = case x of
@@ -160,6 +159,7 @@ maybeAdd'' : Maybe Int -> Maybe Int -> Maybe Int
 maybeAdd'' x y = do x <- x
                     y <- y
                     Just (x + y)
+                    
 
 main : IO ()
 main = replWith (MkData SString _ []) "Command: " processInput
