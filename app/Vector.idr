@@ -45,3 +45,38 @@ Foldable (Vector.Vect len) where
   foldl func init [] = init
   foldl func init (x :: xs) = func (foldl func init xs) x
 
+
+headUnequal : DecEq a => {xs : Vector.Vect n a} -> {ys : Vector.Vect n a} -> (contra : (x = y) -> Void) -> ((x :: xs) = (y :: ys)) -> Void
+headUnequal contra Refl = contra Refl
+
+
+
+tailUnequal : DecEq a => {xs : Vector.Vect n a} -> {ys : Vector.Vect n a} -> (contra : (xs = ys) -> Void) -> ((x :: xs) = (y :: ys)) -> Void
+tailUnequal contra Refl = contra Refl
+
+DecEq a => DecEq (Vector.Vect n a) where  
+  decEq [] [] = Yes Refl
+  decEq (x :: xs) (y :: ys) = case decEq x y of
+                                   (Yes Refl) => case decEq xs ys of
+                                                      (Yes Refl) => Yes Refl
+                                                      (No contra) => No (tailUnequal contra)
+                                   (No contra) => No (headUnequal contra)
+
+removeElem : (value : a) -> (xs : Data.Vect.Vect (S n) a) -> (prf : Elem value xs) -> Data.Vect.Vect n a
+removeElem value (value :: ys) Here = ys
+removeElem {n = Z} value (y :: []) (There later) = absurd later
+removeElem {n = (S k)} value (y :: ys) (There later) = y :: removeElem value ys later
+
+removeElem_auto : (value : a) -> (xs : Data.Vect.Vect (S n) a) -> {auto prf : Elem value xs} -> Data.Vect.Vect n a
+removeElem_auto value xs {prf} = removeElem value xs prf
+
+
+maryInVector : Elem "Mary" ["Peter", "Paul", "Mary"]
+maryInVector = There (There Here)
+
+removeElem' : (value : a) -> (xs : Data.Vect.Vect (S n) a) -> {auto prf : Elem value xs} -> Data.Vect.Vect n a
+removeElem' value (value :: ys) {prf = Here} = ys
+removeElem' {n = Z} value (y :: []) {prf = (There later)} = absurd later
+removeElem' {n = (S k)} value (y :: ys) {prf = (There _)} = y :: removeElem' value ys 
+
+
