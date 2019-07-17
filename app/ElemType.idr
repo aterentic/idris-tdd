@@ -46,24 +46,27 @@ data Last : List a -> a -> Type where
 --                               No notSame => No (absurd ?x)
 -- isLast (x :: xs) value = ?isLast_rhs_2
 
+total
 notInNilList : Last [] value -> Void
 notInNilList _ impossible
 
+total
 notLast : (contra : (x = value) -> Void) -> Last [x] value -> Void
 notLast contra LastOne = contra Refl
 notLast _ (LastCons _) impossible
 
-notLastOfRest : (contra : Last xs value -> Void) -> Last (x :: xs) value -> Void
+total
+notLastOfRest : (contra : Last (x :: xs) value -> Void) -> Last (_ :: x :: xs) value -> Void
 notLastOfRest contra (LastCons prf) = contra prf
 
-
-
+total
 isLast : DecEq a => (xs : List a) -> (value : a) -> Dec (Last xs value)
+isLast [] value = No notInNilList
 isLast (x :: []) value = case decEq x value of
                               (Yes Refl) => Yes LastOne
                               (No contra) => No (notLast contra)
-isLast (x :: xs) value = case isLast xs value of
-                              (Yes prf) => Yes (LastCons prf)
-                              (No contra) => No (notLastOfRest contra)
+isLast (_ :: x :: xs) value = case isLast (x :: xs) value of
+                                   (Yes prf) => Yes (LastCons prf)
+                                   (No contra) => No (notLastOfRest contra)
 
--- TODO functions are not total
+
