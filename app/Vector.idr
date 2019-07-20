@@ -62,11 +62,13 @@ DecEq a => DecEq (Vector.Vect n a) where
                                                       (No contra) => No (tailUnequal contra)
                                    (No contra) => No (headUnequal contra)
 
+export
 removeElem : (value : a) -> (xs : Data.Vect.Vect (S n) a) -> (prf : Elem value xs) -> Data.Vect.Vect n a
 removeElem value (value :: ys) Here = ys
 removeElem {n = Z} value (y :: []) (There later) = absurd later
 removeElem {n = (S k)} value (y :: ys) (There later) = y :: removeElem value ys later
 
+export
 removeElem_auto : (value : a) -> (xs : Data.Vect.Vect (S n) a) -> {auto prf : Elem value xs} -> Data.Vect.Vect n a
 removeElem_auto value xs {prf} = removeElem value xs prf
 
