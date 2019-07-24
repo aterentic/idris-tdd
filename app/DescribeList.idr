@@ -78,5 +78,15 @@ groupByN n xs with (takeN n xs)
   groupByN n xs | Fewer = [xs]
   groupByN n (n_xs ++ rest) | (Exact n_xs) = n_xs :: groupByN n rest
 
+
 halves : (xs : List a) -> (List a, List a)
-halves xs = ?halves_rhs
+halves input with (takeN (div (length input) 2) input)
+  halves input | Fewer = ([], input)
+  halves (n_xs ++ rest) | Exact n_xs = (n_xs, rest)
+
+data SnocList ty = EmptySnoc | Snoc (SnocList ty) ty
+                
+reverseSnoc : SnocList ty -> List ty
+reverseSnoc EmptySnoc = []
+reverseSnoc (Snoc xs x) = x :: reverseSnoc xs
+
