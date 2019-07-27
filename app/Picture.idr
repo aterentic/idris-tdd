@@ -1,21 +1,45 @@
 module Picture
 
-
+export
 data Shape = Triangle Double Double
            | Rectangle Double Double
            | Circle Double
-           
+
+export
 area : Shape -> Double           
 area (Triangle x y) = 0.5 * x * y
 area (Rectangle x y) = x * y
 area (Circle x) = pi * x * x
 
+export
+triangle' : Double -> Double -> Shape
+triangle' = Triangle
+
+export
+rectangle' : Double -> Double -> Shape
+rectangle' = Rectangle
+
+export 
+circle' : Double -> Shape
+circle' = Circle
+
+public export
+data ShapeView : (shape : Shape) -> Type where
+     STriangle : ShapeView (triangle' x y)
+     SRectangle : ShapeView (rectangle' x y)
+     SCircle : ShapeView (circle' r)
+
+export
+shapeView : (shape : Shape) -> ShapeView shape
+shapeView (Triangle x y) = STriangle
+shapeView (Rectangle x y) = SRectangle
+shapeView (Circle x) = SCircle
 
 data Picture = Primitive Shape
-             | Combine Picture Picture
+              | Combine Picture Picture
              | Rotate Double Picture
              | Translate Double Double Picture
-             
+
 rectangle : Picture
 rectangle = Primitive $ Rectangle 20 10
 
