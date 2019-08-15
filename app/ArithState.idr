@@ -39,6 +39,19 @@ data Command : Type -> Type where
      Pure : ty -> Command ty
      Bind : Command a -> (a -> Command b) -> Command b
 
+mutual
+  Functor Command where
+    map f cmd = do val <- cmd
+                   pure (f val)
+
+  Applicative Command where
+    pure = Pure
+    (<*>) f a = do f' <- f
+                   a' <- a
+                   pure (f' a')
+  
+  Monad Command where
+    (>>=) = Bind
 
 runCommand : Stream Int -> GameState -> Command a -> IO (a, Stream Int, GameState)
 runCommand rnds state (PutStr x) = do putStr x 
@@ -134,3 +147,41 @@ main = do seed <- time
                 run forever (randoms (fromInteger seed)) initState quiz
                     | _ => putStrLn "Ran out of fuel"
           putStrLn ("Final score: " ++ show state)
+
+updateGameState : (GameState -> GameState) -> Command ()
+updateGameState f = do state <- GetGameState
+                       PutGameState (f state)
+
+correct' : ConsoleIO GameState
+correct' = do PutStr "Correct!\n"
+              updateGameState addCorrect
+              quiz
+
+record Votes where
+       constructor MkVotes
+       upvotes : Integer
+       downvotes : Integer
+
+record Article where
+       constructor MkArticle
+       title : String
+       url : String
+       score : Votes
+
+initPage : (title : String) -> (url : String) -> Article
+initPage title url = MkArticle title url (MkVotes 0 0)
+
+getScore : Article -> Integer
+getScore (MkArticle title url (MkVotes upvotes downvotes)) = upvotes - downvotes
+
+badSite : Article
+badSite = MkArticle "Bad Page" "http://example.com/bad" (MkVotes 5 47)
+
+goodSite : Article
+goodSite = MkArticle "Good Page" "http://example.com/good" (MkVotes 101 7)
+
+addUpvote : Article -> Article
+addUpvote state = record { score->upvotes $= (+1) } state
+
+addDownvote : Article -> Article
+addDownvote state = record { score->downvotes $= (+1) } state
