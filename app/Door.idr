@@ -11,6 +11,7 @@ data DoorCmd : Type -> DoorState -> DoorState -> Type where
 doorProg : DoorCmd () DoorClosed DoorClosed
 doorProg = do RingBell 
               Open
+              Close
 
 
 
