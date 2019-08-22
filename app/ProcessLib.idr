@@ -12,12 +12,14 @@ public export
 data ProcState = NoRequest | Sent | Complete
 
 public export
-data Process : (iface : reqType -> Type) -> Type -> (in_state : ProcState) -> (out_state : ProcState) -> Type where
-     Request : MessagePID service_iface -> 
-               (msg : service_reqType) ->
+data Process : (iface : reqType -> Type) -> 
+               Type -> 
+               (in_state : ProcState) -> 
+               (out_state : ProcState) -> 
+               Type where
+     Request : MessagePID service_iface -> (msg : service_reqType) -> 
                Process iface (service_iface msg) st st
-     Respond : ((msg : reqType) -> 
-                     Process iface (iface msg) NoRequest NoRequest) -> 
+     Respond : ((msg : reqType) -> Process iface (iface msg) NoRequest NoRequest) -> 
                Process iface (Maybe reqType) st Sent
      Spawn : Process service_iface () NoRequest Complete -> 
              Process iface (Maybe (MessagePID service_iface)) st st
@@ -37,7 +39,7 @@ NoRecv = const Void
 
 public export
 Client : Type -> Type
-Client a = Process NoRecv () NoRequest NoRequest
+Client a = Process NoRecv a NoRequest NoRequest
 
 public export
 data Fuel = Dry | More (Lazy Fuel)
@@ -48,11 +50,13 @@ run Dry _ = pure Nothing
 run (More fuel) (Loop act) = run fuel act
 run fuel (Action act) = do res <- act
                            pure (Just res)
-run fuel (Spawn proc) = do Just pid <- spawn (do run fuel proc; pure ())
+run fuel (Spawn proc) = do Just pid <- spawn (do run fuel proc
+                                                 pure ())
                                     | Nothing => pure Nothing
                            pure (Just (Just (MkMessage pid)))
 run fuel (Request {service_iface} (MkMessage process) msg) 
-         = do Just chan <- connect process | _ => pure Nothing
+         = do Just chan <- connect process 
+                        | _ => pure Nothing
               ok <- unsafeSend chan msg
               if ok then do Just x <- unsafeRecv (service_iface msg) chan
                                    | Nothing => pure Nothing
@@ -60,9 +64,9 @@ run fuel (Request {service_iface} (MkMessage process) msg)
                      else pure Nothing
 run fuel (Respond {reqType} calc) 
                         = do Just sender <- listen 1
-                                         | Nothing => pure (Just Nothing)
+                                         | Nothing => pure Nothing
                              Just msg    <- unsafeRecv reqType sender
-                                         | Nothing => pure (Just Nothing)
+                                         | Nothing => pure Nothing
                              Just res    <- run fuel (calc msg)
                                          | Nothing => pure Nothing
                              unsafeSend sender res

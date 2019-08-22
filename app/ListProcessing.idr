@@ -16,7 +16,7 @@ procList = do Respond (\msg => case msg of
 
 procMain : Client ()
 procMain = do Just list <- Spawn procList
-                   | Nothing => Action (putStrLn "Spawn failed")
+                        | Nothing => Action (putStrLn "Spawn failed")
               len <- Request list (Length [1,2,3])
               Action (printLn len)
               
